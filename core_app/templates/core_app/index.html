@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruta Segura Colombia - Mapa en Tiempo Real</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <h1><i class="fas fa-shield-alt"></i> Ruta Segura Colombia</h1>
+            <p class="subtitle">Sistema Integrado de Seguridad Vial y Movilidad - Todo el País</p>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="zonas-criticas"><i class="fas fa-exclamation-triangle"></i> Zonas Críticas</button>
+            <button class="tab-btn" data-tab="trafico"><i class="fas fa-traffic-light"></i> Tráfico Tiempo Real</button>
+            <button class="tab-btn" data-tab="prediccion"><i class="fas fa-chart-line"></i> Predicción Congestión</button>
+            <button class="tab-btn" data-tab="lluvias"><i class="fas fa-cloud-rain"></i> Rutas Seguras Lluvia</button>
+        </nav>
+
+        <div class="content">
+            <div id="map-container">
+                <div id="map"></div>
+                <div class="legend" id="legend"></div>
+                <div class="loading-overlay" id="loading">
+                    <div class="spinner"></div>
+                    <p>Cargando datos...</p>
+                </div>
+            </div>
+
+            <aside class="sidebar" id="sidebar">
+                <div class="panel" id="panel-zonas-criticas">
+                    <h2><i class="fas fa-exclamation-triangle"></i> Zonas Críticas de Accidentalidad</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <span class="stat-number" id="total-sectores">0</span>
+                            <span class="stat-label">Sectores Monitoreados</span>
+                        </div>
+                        <div class="stat-card danger">
+                            <span class="stat-number" id="total-accidentes">0</span>
+                            <span class="stat-label">Accidentes Históricos</span>
+                        </div>
+                        <div class="stat-card warning">
+                            <span class="stat-number" id="total-inundables">0</span>
+                            <span class="stat-label">Zonas Inundables</span>
+                        </div>
+                    </div>
+                    <div class="filter-section">
+                        <select id="filter-tipo">
+                            <option value="municipio">Municipio</option>
+                            <option value="departamento">Departamento</option>
+                        </select>
+                        <input type="text" id="filter-valor" placeholder="Filtrar por municipio/departamento...">
+                        <button id="apply-filter"><i class="fas fa-filter"></i> Aplicar</button>
+                    </div>
+                    <div class="list-container" id="sectores-list"></div>
+                </div>
+
+                <div class="panel hidden" id="panel-trafico">
+                    <h2><i class="fas fa-traffic-light"></i> Monitoreo de Tráfico</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card success">
+                            <span class="stat-number" id="trafico-fluido">0</span>
+                            <span class="stat-label">Tráfico Fluido</span>
+                        </div>
+                        <div class="stat-card warning">
+                            <span class="stat-number" id="trafico-moderado">0</span>
+                            <span class="stat-label">Tráfico Moderado</span>
+                        </div>
+                        <div class="stat-card danger">
+                            <span class="stat-number" id="trafico-critico">0</span>
+                            <span class="stat-label">Tráfico Crítico</span>
+                        </div>
+                    </div>
+                    <p class="update-info">Actualizado hace: <span id="last-update">5</span> minutos</p>
+                    <div class="list-container" id="flujo-list"></div>
+                </div>
+
+                <div class="panel hidden" id="panel-prediccion">
+                    <h2><i class="fas fa-chart-line"></i> Predicción de Congestión</h2>
+                    <div class="prediction-info">
+                        <p>Modelos predictivos anticipan congestión <strong>2-4 horas</strong> antes</p>
+                        <p class="source">Fuente: Sistemas de Movilidad Municipal</p>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <span class="stat-number" id="pred-alta">0</span>
+                            <span class="stat-label">Alto Riesgo</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-number" id="pred-media">0</span>
+                            <span class="stat-label">Riesgo Medio</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-number" id="pred-baja">0</span>
+                            <span class="stat-label">Bajo Riesgo</span>
+                        </div>
+                    </div>
+                    <div class="list-container" id="prediccion-list"></div>
+                </div>
+
+                <div class="panel hidden" id="panel-lluvias">
+                    <h2><i class="fas fa-cloud-rain"></i> Rutas Seguras (Temporada Lluvia)</h2>
+                    <div class="weather-alert" id="weather-alert">
+                        <i class="fas fa-info-circle"></i>
+                        <span id="alert-count">0</span> municipios con alerta de lluvia/inundación
+                    </div>
+                    <div class="list-container" id="rutas-seguras-list"></div>
+                </div>
+            </aside>
+        </div>
+
+        <footer class="footer">
+            <p>Fuente: Observatorios de Movilidad municipales | Ministerio de Movilidad</p>
+            <p><small>Sistema Ruta Segura - Versión 1.0</small></p>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
