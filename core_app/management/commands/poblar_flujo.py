@@ -4,12 +4,12 @@ from django.utils import timezone
 from core_app.models import FlujoTiempoReal, SectoresCriticos
 
 class Command(BaseCommand):
-    help = 'Simula flujo de tráfico en tiempo real'
+    help = 'Simula flujo de tráfico en tiempo real de Medellín'
 
     def handle(self, *args, **kwargs):
-        self.stdout.write(self.style.SUCCESS('Simulando datos de flujo de tráfico...'))
+        self.stdout.write(self.style.SUCCESS('Simulando datos de tráfico de Medellín...'))
         
-        sectores = list(SectoresCriticos.objects.all())
+        sectores = list(SectoresCriticos.objects.filter(municipio='Medellín'))
         
         for sector in sectores:
             for i in range(3):
@@ -22,4 +22,4 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(f"[FLUJO] {sector.nombre_sector}: {random.randint(100, 2000)} veh")
         
-        self.stdout.write(self.style.SUCCESS('Datos de tráfico generados!'))
+        self.stdout.write(self.style.SUCCESS('Datos de tráfico de Medellín generados!'))

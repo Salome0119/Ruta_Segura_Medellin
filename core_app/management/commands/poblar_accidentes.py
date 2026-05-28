@@ -4,12 +4,12 @@ from django.utils import timezone
 from core_app.models import HistoricoAccidentes, SectoresCriticos
 
 class Command(BaseCommand):
-    help = 'Simula histórico de accidentes'
+    help = 'Simula histórico de accidentes de Medellín'
 
     def handle(self, *args, **kwargs):
-        self.stdout.write(self.style.SUCCESS('Simulando histórico de accidentes...'))
+        self.stdout.write(self.style.SUCCESS('Simulando histórico de accidentes de Medellín...'))
         
-        sectores = list(SectoresCriticos.objects.all())
+        sectores = list(SectoresCriticos.objects.filter(municipio='Medellín'))
         gravedades = ['Solo Daños', 'Con Heridos', 'Con Muertos']
         vehiculos = ['Moto', 'Auto', 'Peatón', 'Bicicleta']
         climas = ['Seco', 'Lluvia ligera', 'Lluvia intensa']
@@ -25,4 +25,4 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(f"[ACCIDENTE] {sector.nombre_sector}")
         
-        self.stdout.write(self.style.SUCCESS('Histórico de accidentes generado!'))
+        self.stdout.write(self.style.SUCCESS('Histórico de accidentes de Medellín generado!'))

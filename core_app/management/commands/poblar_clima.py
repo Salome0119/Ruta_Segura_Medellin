@@ -4,30 +4,23 @@ from django.utils import timezone
 from core_app.models import ClimaActual
 
 class Command(BaseCommand):
-    help = 'Simula datos meteorológicos en tiempo real para municipios de Colombia'
+    help = 'Simula datos meteorológicos en tiempo real para Medellín'
 
     def handle(self, *args, **kwargs):
-        self.stdout.write(self.style.SUCCESS('Iniciando extracción de datos climáticos...'))
+        self.stdout.write(self.style.SUCCESS('Iniciando extracción de datos climáticos de Medellín...'))
 
-        municipios_colombia = [
+        # Comunas de Medellín con riesgo pluvial diferente
+        comunas_medellin = [
             {"departamento": "ANT", "municipio": "Medellín"},
             {"departamento": "ANT", "municipio": "Bello"},
             {"departamento": "ANT", "municipio": "Itagüí"},
-            {"departamento": "BGT", "municipio": "Bogotá"},
-            {"departamento": "VAC", "municipio": "Cali"},
-            {"departamento": "BOL", "municipio": "Barranquilla"},
-            {"departamento": "SAC", "municipio": "Bucaramanga"},
-            {"departamento": "COR", "municipio": "Montería"},
-            {"departamento": "QUC", "municipio": "Quito"},
-            {"departamento": "HUA", "municipio": "Neiva"},
-            {"departamento": "MAG", "municipio": "Santa Marta"},
-            {"departamento": "CAS", "municipio": "Valledupar"},
-            {"departamento": "ATL", "municipio": "Soledad"},
-            {"departamento": "RIS", "municipio": "Pereira"},
-            {"departamento": "CAQ", "municipio": "Florencia"},
+            {"departamento": "ANT", "municipio": "Envigado"},
+            {"departamento": "ANT", "municipio": "Sabaneta"},
+            {"departamento": "ANT", "municipio": "Caldas"},
         ]
 
-        for item in municipios_colombia:
+        for item in comunas_medellin:
+            # Simular lluvia realista (mayor en zonas altas)
             intensidad = round(random.uniform(0.0, 45.0), 2)
             alerta = intensidad > 25.0
 
@@ -42,8 +35,8 @@ class Command(BaseCommand):
             )
 
             if created:
-                self.stdout.write(f"[NUEVO] {item['municipio']} ({item['departamento']}): {intensidad} mm/h.")
+                self.stdout.write(f"[NUEVO] {item['municipio']}: {intensidad} mm/h.")
             else:
                 self.stdout.write(f"[ACTUALIZADO] {item['municipio']}: {intensidad} mm/h.")
 
-        self.stdout.write(self.style.SUCCESS('¡Clima de Colombia actualizado con éxito!'))
+        self.stdout.write(self.style.SUCCESS('¡Clima de Medellín actualizado!'))

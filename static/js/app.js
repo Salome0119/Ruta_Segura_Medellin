@@ -12,7 +12,7 @@ const rutasSegurasApp = {
     },
 
     initMap() {
-        this.map = L.map('map').setView([4.5708, -74.2973], 6);
+        this.map = L.map('map').setView([6.2442, -75.5812], 12);
         
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
@@ -22,9 +22,13 @@ const rutasSegurasApp = {
     },
 
     bindEvents() {
+        const self = this;
         document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.switchTab(e.target.dataset.tab);
+            btn.addEventListener('click', function(e) {
+                const tabName = this.getAttribute('data-tab');
+                if (tabName) {
+                    self.switchTab(tabName);
+                }
             });
         });
 
@@ -38,9 +42,8 @@ const rutasSegurasApp = {
     },
 
     getFilterParams() {
-        const filtro = document.getElementById('filter-valor').value;
-        const campo = document.getElementById('filter-tipo').value;
-        return { filtro, campo };
+        const filtro = document.getElementById('filter-valor')?.value || '';
+        return { filtro, campo: 'barrio' };
     },
 
     applyCurrentFilter() {
@@ -127,15 +130,17 @@ const rutasSegurasApp = {
         try {
             const { filtro, campo } = this.getFilterParams();
             const url = filtro ? `/sectores/?filtro=${encodeURIComponent(filtro)}&campo=${campo}` : '/sectores/';
+            console.log('Fetching sectores:', url);
             const response = await fetch(url);
             const data = await response.json();
+            console.log('Sectores data:', data);
 
             document.getElementById('total-sectores').textContent = data.total;
             document.getElementById('total-inundables').textContent = data.sectores.filter(s => s.es_inundable).length;
 
             this.clearMarkers();
             this.renderSectoresList(data.sectores);
-
+            
             const responseAcc = await fetch('/api/historico-accidentes/');
             const accData = await responseAcc.json();
             document.getElementById('total-accidentes').textContent = accData.total;
@@ -191,11 +196,64 @@ const rutasSegurasApp = {
     renderSectoresList(sectores) {
         const container = document.getElementById('sectores-list');
         container.innerHTML = sectores.map(s => `
-            <div class="list-item ${s.es_inundable ? 'danger' : s.capacidad_vehicular_max < 50 ? 'warning' : 'success'}">
-                <div class="list-item-header">${s.nombre_sector}</div>
-                <div class="list-item-detail">${s.municipio}, ${s.departamento} | Capacidad: ${s.capacidad_vehicular_max} veh</div>
+            <div class="list-item ${s.es_inundable ? 'danger' : s.capacidad_vehicular_max < 50 ? 'warning' : 'success'}" data-id="${s.id}" data-type="sector">
+                <div class="list-item-header">
+                    <span>${s.nombre_sector}</span>
+                    <span class="notification-badge ${s.es_inundable ? '' : 'hidden'}">Inundable</span>
+                </div>
+                <div class="list-item-detail">${s.barrio ? s.barrio + ' | ' : ''}${s.municipio} | ${s.capacidad_vehicular_max} veh</div>
+                <div class="detail-card" id="detail-${s.id}" style="display:none;">
+                    <div class="detail-content">
+                        <h4>${s.nombre_sector}</h4>
+                        <p><strong>Barrio:</strong> ${s.barrio || 'N/A'}</p>
+                        <p><strong>Municipio:</strong> ${s.municipio}</p>
+                        <p><strong>Capacidad:</strong> ${s.capacidad_vehicular_max} veh/h</p>
+                        <p><strong>Zona Inundable:</strong> ${s.es_inundable ? 'Sí ⚠️' : 'No'}</p>
+                    </div>
+                </div>
             </div>
         `).join('');
+        this.bindItemClick();
+    },
+
+    toggleDetailCard(id, type) {
+        let cardId;
+        if (type === 'sector') {
+            cardId = `detail-${id}`;
+        } else if (type === 'flujo') {
+            cardId = `detail-flujo-${id}`;
+        } else if (type === 'prediccion') {
+            cardId = `detail-pred-${id}`;
+        } else if (type === 'ruta') {
+            cardId = `detail-ruta-${id}`;
+        }
+        
+        // Close all other cards
+        document.querySelectorAll('.detail-card').forEach(card => {
+            if (card.id !== cardId) {
+                card.style.display = 'none';
+            }
+        });
+        
+        const card = document.getElementById(cardId);
+        if (card) {
+            card.style.display = card.style.display === 'none' ? 'block' : 'none';
+        }
+    },
+
+    bindItemClick() {
+        document.querySelectorAll('.list-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const type = item.dataset.type;
+                const id = item.dataset.type === 'sector' ? item.dataset.id : 
+                          item.dataset.type === 'ruta' || item.dataset.type === 'flujo' || item.dataset.type === 'prediccion' ? 
+                          item.dataset.idx : null;
+                if (type && id !== null) {
+                    this.toggleDetailCard(id, type);
+                }
+            });
+        });
     },
 
     async loadFlujoTiempoReal() {
@@ -230,14 +288,52 @@ const rutasSegurasApp = {
         }
     },
 
-    renderFlujoList(flujos) {
+renderFlujoList(flujos) {
         const container = document.getElementById('flujo-list');
-        container.innerHTML = flujos.map(f => `
-            <div class="list-item ${f.nivel_congestion === 'Crítico' ? 'danger' : f.nivel_congestion === 'Moderado' ? 'warning' : 'success'}">
-                <div class="list-item-header">${f.sector_nombre}</div>
-                <div class="list-item-detail">${f.municipio}, ${f.departamento} | ${f.velocidad_promedio} km/h | ${f.nivel_congestion}</div>
+        container.innerHTML = flujos.map((f, idx) => `
+            <div class="list-item ${f.nivel_congestion === 'Crítico' ? 'danger' : f.nivel_congestion === 'Moderado' ? 'warning' : 'success'}" data-type="flujo" data-idx="${idx}">
+                <div class="list-item-header">
+                    <span>${f.sector_nombre}</span>
+                    <span class="notification-badge ${f.nivel_congestion === 'Crítico' ? '' : 'hidden'}">${f.nivel_congestion}</span>
+                </div>
+                <div class="list-item-detail">${f.velocidad_promedio} km/h | ${f.volumen_vehicular} veh</div>
+                <div class="detail-card" id="detail-flujo-${idx}" style="display:none;">
+                    <div class="detail-content">
+                        <h4>${f.sector_nombre}</h4>
+                        <p><strong>Velocidad:</strong> ${f.velocidad_promedio} km/h</p>
+                        <p><strong>Volumen:</strong> ${f.volumen_vehicular} vehículos</p>
+                        <p><strong>Estado:</strong> ${f.nivel_congestion}</p>
+                        <p><strong>Última actualización:</strong> ${f.fecha_hora_registro}</p>
+                    </div>
+                </div>
             </div>
         `).join('');
+        this.bindItemClick();
+    },
+
+    renderPrediccionList(predicciones) {
+        const container = document.getElementById('prediccion-list');
+        container.innerHTML = predicciones.map((p, idx) => {
+            const riskClass = p.probabilidad_congestion >= 0.7 ? 'danger' : p.probabilidad_congestion >= 0.4 ? 'warning' : 'success';
+            return `
+                <div class="list-item ${riskClass}" data-type="prediccion" data-idx="${idx}">
+                    <div class="list-item-header">
+                        <span>${p.sector_nombre}</span>
+                        <span class="notification-badge ${p.probabilidad_congestion >= 0.7 ? '' : 'hidden'}">${Math.round(p.probabilidad_congestion * 100)}%</span>
+                    </div>
+                    <div class="list-item-detail">${p.fecha_hora_predicha}</div>
+                    <div class="detail-card" id="detail-pred-${idx}" style="display:none;">
+                        <div class="detail-content">
+                            <h4>${p.sector_nombre}</h4>
+                            <p><strong>Riesgo de congestión:</strong> ${(p.probabilidad_congestion * 100).toFixed(0)}%</p>
+                            <p><strong>Hora predicción:</strong> ${p.fecha_hora_predicha}</p>
+                            <p><strong>Ejecutado:</strong> ${p.fecha_hora_ejecucion}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        this.bindItemClick();
     },
 
     async loadPredicciones() {
@@ -270,19 +366,6 @@ const rutasSegurasApp = {
         } finally {
             this.setLoading(false);
         }
-    },
-
-    renderPrediccionList(predicciones) {
-        const container = document.getElementById('prediccion-list');
-        container.innerHTML = predicciones.map(p => {
-            const riskClass = p.probabilidad_congestion >= 0.7 ? 'danger' : p.probabilidad_congestion >= 0.4 ? 'warning' : 'success';
-            return `
-                <div class="list-item ${riskClass}">
-                    <div class="list-item-header">${p.sector_nombre}</div>
-                    <div class="list-item-detail">${p.municipio}, ${p.departamento} | Riesgo: ${(p.probabilidad_congestion * 100).toFixed(0)}% | ${p.fecha_hora_predicha}</div>
-                </div>
-            `;
-        }).join('');
     },
 
     async loadRutasSeguras() {
@@ -326,21 +409,96 @@ const rutasSegurasApp = {
             container.innerHTML = '<p class="list-item-detail">No hay rutas peligrosas registradas en este momento.</p>';
             return;
         }
-        container.innerHTML = rutas.map(r => `
-            <div class="list-item danger">
-                <div class="list-item-header">${r.sector_nombre}</div>
-                <div class="list-item-detail">${r.municipio}, ${r.departamento} | Riesgo: ${(r.riesgo_congestion * 100).toFixed(0)}%</div>
+        container.innerHTML = rutas.map((r, idx) => `
+            <div class="list-item danger" data-type="ruta" data-idx="${idx}">
+                <div class="list-item-header">
+                    <span>${r.sector_nombre}</span>
+                    <span class="notification-badge">${Math.round(r.riesgo_congestion * 100)}%</span>
+                </div>
+                <div class="list-item-detail">${r.municipio} | Riesgo alto</div>
+                <div class="detail-card" id="detail-ruta-${idx}" style="display:none;">
+                    <div class="detail-content">
+                        <h4>${r.sector_nombre}</h4>
+                        <p><strong>Municipio:</strong> ${r.municipio}</p>
+                        <p><strong>Riesgo congestión:</strong> ${(r.riesgo_congestion * 100).toFixed(0)}%</p>
+                        <p><strong>Zona inundable:</strong> ${r.es_inundable ? 'Sí ⚠️' : 'No'}</p>
+                    </div>
+                </div>
             </div>
         `).join('');
+        this.bindItemClick();
     },
 
     startAutoRefresh() {
         setInterval(() => {
-            if (this.currentTab === 'trafico') this.loadFlujoTiempoReal();
+            if (this.currentTab === 'zonas-criticas') this.loadSectoresCriticos();
+            else if (this.currentTab === 'trafico') this.loadFlujoTiempoReal();
             else if (this.currentTab === 'prediccion') this.loadPredicciones();
             else if (this.currentTab === 'lluvias') this.loadRutasSeguras();
         }, 300000);
+    },
+
+    initChatbot() {
+        const chatbot = document.getElementById('chatbot');
+        const openBtn = document.getElementById('chatbot-open-btn');
+        const closeBtn = document.getElementById('chatbot-close');
+        const input = document.getElementById('chatbot-input');
+        const sendBtn = document.getElementById('chatbot-send');
+
+        if (openBtn && chatbot) {
+            openBtn.addEventListener('click', () => {
+                chatbot.classList.add('chatbot-visible');
+            });
+        }
+
+        if (closeBtn && chatbot) {
+            closeBtn.addEventListener('click', () => {
+                chatbot.classList.remove('chatbot-visible');
+            });
+        }
+
+        if (sendBtn) {
+            sendBtn.addEventListener('click', () => this.sendChatbotMessage());
+        }
+        
+        if (input) {
+            input.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') this.sendChatbotMessage();
+            });
+        }
+    },
+
+    async sendChatbotMessage() {
+        const input = document.getElementById('chatbot-input');
+        const messages = document.getElementById('chatbot-messages');
+        const pregunta = input.value.trim();
+        
+        if (!pregunta) return;
+        
+        const timeNow = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+        
+        messages.innerHTML += `<div class="chatbot-message user">${pregunta}<span class="time-indicator">${timeNow}</span></div>`;
+        input.value = '';
+        messages.scrollTop = messages.scrollHeight;
+        
+        try {
+            const response = await fetch(`/api/chatbot/?pregunta=${encodeURIComponent(pregunta)}`);
+            const data = await response.json();
+            
+            // Parse markdown-like formatting
+            let formattedResponse = data.respuesta
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+            
+            messages.innerHTML += `<div class="chatbot-message bot">${formattedResponse}<span class="time-indicator">IA • ${timeNow}</span></div>`;
+        } catch (error) {
+            messages.innerHTML += `<div class="chatbot-message bot">Lo siento, hubo un error. Intenta nuevamente.<span class="time-indicator">${timeNow}</span></div>`;
+        }
+        messages.scrollTop = messages.scrollHeight;
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => rutasSegurasApp.init());
+document.addEventListener('DOMContentLoaded', () => {
+    rutasSegurasApp.init();
+    rutasSegurasApp.initChatbot();
+});
