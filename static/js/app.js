@@ -38,7 +38,6 @@ const rutasSegurasApp = {
         const chatbot = document.getElementById('chatbot');
         const openBtn = document.getElementById('chatbot-open-btn');
         const closeBtn = document.getElementById('chatbot-close');
-        
         openBtn?.addEventListener('click', () => chatbot.classList.add('chatbot-visible'));
         closeBtn?.addEventListener('click', () => chatbot.classList.remove('chatbot-visible'));
         document.getElementById('chatbot-send')?.addEventListener('click', () => this.sendChatbotMessage());
@@ -123,6 +122,51 @@ const rutasSegurasApp = {
         if (item?.coordenadas?.latitud) this.map.setView([item.coordenadas.latitud, item.coordenadas.longitud], 13);
     },
 
+    renderList(containerId, items, type) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = items.map((item, idx) => {
+            const danger = type === 'sector' ? item.es_inundable : (type === 'flujo' ? item.nivel_congestion === 'Crítico' : item.probabilidad_congestion >= 0.7);
+            const warning = type === 'flujo' ? item.nivel_congestion === 'Moderado' : type === 'prediccion' && item.probabilidad_congestion >= 0.4;
+            const cls = danger ? 'danger' : warning ? 'warning' : 'success';
+            const badge = danger ? 'ALERTA' : warning ? 'PRECAUCIÓN' : 'OK';
+            const detail = type === 'sector' ? `${item.barrio || 'N/A'} | ${item.capacidad_vehicular_max} veh` : 
+                          type === 'flujo' ? `${item.velocidad_promedio} km/h | ${item.volumen_vehicular} veh` : 
+                          `${(item.probabilidad_congestion*100).toFixed(0)}%`;
+            return `<div class="list-item ${cls}" data-type="${type}" data-idx="${idx}">
+                <div class="list-item-header"><span>${item.nombre_sector || item.sector_nombre}</span><span class="notification-badge">${badge}</span></div>
+                <div class="list-item-detail">${detail}</div>
+                <div class="detail-card" id="detail-${type}-${idx}" style="display:none">
+                    <div class="detail-content">
+                        <h4>${item.nombre_sector || item.sector_nombre}</h4>
+                        ${type === 'sector' ? `<p><strong>Barrio:</strong> ${item.barrio || 'N/A'}</p><p><strong>Inundable:</strong> ${item.es_inundable ? 'Sí' : 'No'}</p>` : ''}
+                        ${type === 'flujo' ? `<p><strong>Estado:</strong> ${item.nivel_congestion}</p><p><strong>Velocidad:</strong> ${item.velocidad_promedio} km/h</p>` : ''}
+                        ${type === 'prediccion' ? `<p><strong>Riesgo:</strong> ${(item.probabilidad_congestion*100).toFixed(0)}%</p><p><strong>Hora:</strong> ${item.fecha_hora_predicha}</p>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+        this.bindItemClick();
+    },
+
+    bindItemClick() {
+        document.querySelectorAll('.list-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const type = item.dataset.type;
+                const idx = item.dataset.idx;
+                this.toggleDetail(type, idx);
+            });
+        });
+    },
+
+    toggleDetail(type, idx) {
+        document.querySelectorAll('.detail-card').forEach(card => {
+            if (card.id !== `detail-${type}-${idx}`) card.style.display = 'none';
+        });
+        const card = document.getElementById(`detail-${type}-${idx}`);
+        if (card) card.style.display = card.style.display === 'none' ? 'block' : 'none';
+    },
+
     async loadSectoresCriticos() {
         this.setLoading(true);
         try {
@@ -140,16 +184,6 @@ const rutasSegurasApp = {
             if (data.sectores.length > 0) this.flyToFirst(data.sectores[0]);
         } catch (e) { console.error(e); }
         this.setLoading(false);
-    },
-
-    renderList(containerId, items, type) {
-        const container = document.getElementById(containerId);
-        container.innerHTML = items.map((item, idx) => {
-            const danger = type === 'sector' ? item.es_inundable : (type === 'flujo' ? item.nivel_congestion === 'Crítico' : item.probabilidad_congestion >= 0.7);
-            const warning = type === 'flujo' ? item.nivel_congestion === 'Moderado' : type === 'prediccion' && item.probabilidad_congestion >= 0.4;
-            const cls = danger ? 'danger' : warning ? 'warning' : 'success';
-            return `<div class="list-item ${cls}" data-type="${type}" data-idx="${idx}"><div class="list-item-header"><span>${item.nombre_sector || item.sector_nombre}</span></div><div class="list-item-detail">${item.barrio || item.velocidad_promedio + ' km/h' || (item.probabilidad_congestion*100).toFixed(0)+'%'}</div></div>`;
-        }).join('');
     },
 
     async loadFlujoTiempoReal() {
