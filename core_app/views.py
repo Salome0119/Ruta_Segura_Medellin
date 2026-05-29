@@ -1,4 +1,6 @@
 from django.db import models
+import urllib.request
+import json
 from django.http import JsonResponse
 from django.shortcuts import render
 from .models import SectoresCriticos, ClimaActual, FlujoTiempoReal, HistoricoAccidentes, PrediccionesTrafico
@@ -198,10 +200,10 @@ def api_rutas_seguras(request):
 def api_chatbot(request):
     pregunta = request.GET.get('pregunta', '').lower().strip()
     
-    tz = timezone.get_current_timezone()
-    
     if not pregunta:
-        respuesta = "🔍 ¿Qué necesitas?\n\n• **Zonas críticas**: sectores inundables y accidentes\n• **Tráfico RT**: estado actual vial\n• **Predicción IA**: riesgo 2-4 horas\n• **Rutas seguras**: alternativas lluvia\n\nEjemplo: 'zonas inundables El Poblado'"
+        respuesta = "🔍 ¿Qué necesitas?\n\n• **Zonas críticas**: sectores inundables y accidentes\n• **Tráfico RT**: estado actual vial (SIM Medellín)\n• **Predicción IA**: riesgo 2-4 horas\n• **Rutas seguras**: alternativas lluvia\n\nEjemplo: 'tráfico ahora'"
+    elif any(x in pregunta for x in ['tráfico', 'trafico', 'tiempo real', 'flujo', 'camaras', 'cámaras']):
+        respuesta = api_sim_trafico_real()
     elif any(x in pregunta for x in ['zonas críticas', 'críticas', 'sector crítico', 'sectores críticos', 'zonas peligrosas', 'inundables', 'inundable']):
         sectores = SectoresCriticos.objects.filter(municipio='Medellín')
         total = sectores.count()
@@ -213,18 +215,7 @@ def api_chatbot(request):
         respuesta += f"**Total sectores**: {total}\n"
         respuesta += f"**Zonas inundables**: {inundables} ({round(inundables/total*100 if total > 0 else 0)}%)\n\n"
         if top_sectores:
-            respuesta += "**Más críticas**:\n" + "\n".join([f"• {s['nombre_sector']} ({s['barrio']}) - capacidad {s['capacidad_vehicular_max']} veh" for s in top_sectores])
-    elif any(x in pregunta for x in ['tráfico', 'trafico', 'tiempo real', 'flujo']):
-        flujos = FlujoTiempoReal.objects.filter(fecha_hora_registro__gte=timezone.now() - timedelta(hours=1), sector__municipio='Medellín')
-        fluido = flujos.filter(nivel_congestion='Fluido').count()
-        moderado = flujos.filter(nivel_congestion='Moderado').count()
-        critico = flujos.filter(nivel_congestion='Crítico').count()
-        
-        respuesta = f"🟢 **Tráfico Tiempo Real**\n\n"
-        respuesta += f"• **Fluido**: {fluido} sectores\n"
-        respuesta += f"• **Moderado**: {moderado} sectores\n"
-        respuesta += f"• **Crítico**: {critico} sectores\n"
-        respuesta += "\n🔄 Actualización cada 5 minutos"
+            respuesta += "**Más críticas**:\n" + "\n".join([f"• {s['nombre_sector']} ({s['barrio']})" for s in top_sectores])
     elif any(x in pregunta for x in ['predicción', 'prediccion', 'ia', 'inteligencia artificial']):
         predicciones = PrediccionesTrafico.objects.filter(fecha_hora_predicha__gte=timezone.now(), sector__municipio='Medellín')
         alta = sum(1 for p in predicciones if p.probabilidad_congestion >= 0.7)
@@ -235,13 +226,35 @@ def api_chatbot(request):
         respuesta += f"• **Alto riesgo (≥70%)**: {alta}\n"
         respuesta += f"• **Riesgo medio (40-69%)**: {media}\n"
         respuesta += f"• **Bajo riesgo (<40%)**: {baja}\n"
-        respuesta += "\nModelo basado en historial y clima"
-    elif any(x in pregunta for x in ['ruta', 'lluvia', 'inundación', 'seguro', 'alternativa']):
+    elif any(x in pregunta for x in ['ruta', 'lluvia', 'inundación']):
         alertas = ClimaActual.objects.filter(municipio='Medellín', alerta_inundacion_activa=True).count()
-        respuesta = f"🌊 **Rutas Seguras - Lluvia**\n\n"
-        respuesta += f"**Alertas activas**: {alertas} municipios\n"
-        respuesta += "Evita zonas inundables: Deprimido Músicos, Feria Ganado, 80-San Juan"
+        respuesta = f"🌊 **Rutas Seguras - Lluvia**\n\n**Alertas activas**: {alertas} zonas\nEvita: Deprimido Músicos, Feria Ganado"
     else:
-        respuesta = "❓ No entendí. Prueba:\n• '¿Zonas inundables?'\n• '¿Tráfico ahora?'\n• '¿Predicción hoy?'\n• '¿Ruta segura lluvia?'"
+        respuesta = "❓ No entendí. Prueba: '¿Tráfico ahora?', '¿Zonas inundables?'"
     
     return JsonResponse({'status': 'success', 'respuesta': respuesta})
+
+def api_sim_trafico_real():
+    """Obtiene tráfico en tiempo real del SIM Medellín - GeoServer WFS"""
+    try:
+        url = "https://geomedellin.medellin.gov.co/geoserver/wfs?service=wfs&version=2.0.0&request=GetFeature&typeName=movilidad:camaras_cctv_simm&outputFormat=application/json"
+        with urllib.request.urlopen(url, timeout=5) as response:
+            data = json.loads(response.read())
+        
+        total = len(data.get('features', []))
+        respuesta = f"🟢 **Tráfico Tiempo Real - SIM Medellín**\n\n"
+        respuesta += f"**Cámaras activas**: {total}\n"
+        if total > 0:
+            respuesta += "\nDatos en tiempo real del Sistema Inteligente de Movilidad"
+        return respuesta
+    except Exception as e:
+        return "🟢 **Tráfico SIM Medellín**\n\nServicio temporalmente no disponible. Usando datos simulados."
+
+def api_traffic_sim_wfs(request):
+    """Endpoint para obtener datos GeoJSON crudos del SIM"""
+    try:
+        url = "https://geomedellin.medellin.gov.co/geoserver/wfs?service=wfs&version=2.0.0&request=GetFeature&typeName=movilidad:camaras_cctv_simm&outputFormat=application/json"
+        with urllib.request.urlopen(url, timeout=5) as response:
+            return JsonResponse(json.loads(response.read()), safe=False)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

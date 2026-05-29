@@ -11,4 +11,5 @@ urlpatterns = [
     path('api/clima-actual/', views.api_clima_actual, name='api_clima_actual'),
     path('api/rutas-seguras/', views.api_rutas_seguras, name='api_rutas_seguras'),
     path('api/chatbot/', views.api_chatbot, name='api_chatbot'),
+    path('api/traffic-sim/', views.api_traffic_sim_wfs, name='api_traffic_sim_wfs'),
 ]
