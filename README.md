@@ -1,6 +1,4 @@
-Aquí tienes la sección de **Requisitos e Instalación Local** completamente reestructurada, ampliada y detallada paso a paso. Se agregaron las explicaciones conceptuales de lo que hace cada comando técnico para que el documento mantenga un estándar profesional en tu repositorio, explicando claramente el aprovisionamiento del entorno aislado y el despliegue del servidor.
 
----
 
 ## 🛠️ Requisitos del Sistema y Guía de Instalación Local
 
