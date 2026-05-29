@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ruta Segura Medellín - Dashboard</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#0f3460">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -74,5 +76,16 @@
     </div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/static/js/app.js"></script>
+    <script>
+    if('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/service-worker.js')
+        .then(()=> console.log('PWA activada'));
+    }
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+    });
+    </script>
 </body>
 </html>
