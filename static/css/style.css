@@ -412,6 +412,14 @@ body {
     background: var(--naranja-warning);
 }
 
+.list-item.success .notification-badge {
+    background: var(--verde-exito);
+}
+
+.list-item.success .notification-badge {
+    background: var(--verde-exito);
+}
+
 @keyframes pulse-badge {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.6; }
