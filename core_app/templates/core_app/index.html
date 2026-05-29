@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruta Segura Medellín - Dashboard Inteligente</title>
+    <title>Ruta Segura Medellín - Dashboard</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -11,157 +11,67 @@
 <body>
     <div class="dashboard-container">
         <header class="top-header">
-            <div class="header-brand">
-                <i class="fas fa-shield-alt"></i>
-                <h1>Ruta Segura Medellín</h1>
-            </div>
-            <div class="header-info">
-                <span class="live-badge"><i class="fas fa-circle"></i> EN VIVO</span>
-                <span>Actualizado: <span id="last-update">Ahora</span></span>
-            </div>
+            <div class="header-brand"><i class="fas fa-shield-alt"></i><h1>Ruta Segura Medellín</h1></div>
+            <div class="header-info"><span class="live-badge"><i class="fas fa-circle"></i> EN VIVO</span></div>
         </header>
-
         <div class="main-content">
             <nav class="sidebar-tabs">
-                <button class="tab-btn active" data-tab="zonas-criticas" title="Zonas Críticas">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span class="tab-label">Zonas<br>Críticas</span>
-                </button>
-                <button class="tab-btn" data-tab="trafico" title="Tráfico Tiempo Real">
-                    <i class="fas fa-traffic-light"></i>
-                    <span class="tab-label">Tráfico<br>RT</span>
-                </button>
-                <button class="tab-btn" data-tab="prediccion" title="Predicción IA">
-                    <i class="fas fa-brain"></i>
-                    <span class="tab-label">Predicción<br>IA</span>
-                </button>
-                <button class="tab-btn" data-tab="lluvias" title="Rutas Seguras Lluvia">
-                    <i class="fas fa-cloud-rain"></i>
-                    <span class="tab-label">Rutas<br>Lluvia</span>
-                </button>
-                <button class="chatbot-sidebar-btn" id="chatbot-open-btn" title="Asistente IA">
-                    <i class="fas fa-robot"></i>
-                    <span class="tab-label">Asistente<br>IA</span>
-                </button>
+                <button class="tab-btn active" data-tab="zonas-criticas"><i class="fas fa-exclamation-triangle"></i><span class="tab-label">Zonas<br>Críticas</span></button>
+                <button class="tab-btn" data-tab="trafico"><i class="fas fa-traffic-light"></i><span class="tab-label">Tráfico<br>RT</span></button>
+                <button class="tab-btn" data-tab="prediccion"><i class="fas fa-brain"></i><span class="tab-label">Predicción<br>IA</span></button>
+                <button class="tab-btn" data-tab="lluvias"><i class="fas fa-cloud-rain"></i><span class="tab-label">Rutas<br>Lluvia</span></button>
+                <button class="chatbot-sidebar-btn" id="chatbot-open-btn"><i class="fas fa-robot"></i><span class="tab-label">Asistente<br>IA</span></button>
             </nav>
-
             <div class="map-section">
                 <div id="map"></div>
-                <div class="map-overlay">
-                    <div class="legend" id="legend"></div>
-                    <div class="loading-overlay" id="loading">
-                        <div class="spinner"></div>
-                        <p>Cargando datos en tiempo real...</p>
-                    </div>
-                </div>
+                <div class="loading-overlay" id="loading"><div class="spinner"></div><p>Cargando...</p></div>
+                <div class="legend" id="legend"></div>
             </div>
-
-            <aside class="data-panel" id="sidebar">
+            <aside class="data-panel">
                 <div class="panel" id="panel-zonas-criticas">
-                    <div class="panel-header">
-                        <h2><i class="fas fa-exclamation-triangle"></i> Zonas Críticas</h2>
-                    </div>
+                    <div class="panel-header"><h2><i class="fas fa-exclamation-triangle"></i> Zonas Críticas</h2></div>
                     <div class="stats-cards">
-                        <div class="stat-card">
-                            <div class="stat-value" id="total-sectores">0</div>
-                            <div class="stat-label">Total</div>
-                        </div>
-                        <div class="stat-card danger">
-                            <div class="stat-value" id="total-accidentes">0</div>
-                            <div class="stat-label">Accidentes</div>
-                        </div>
-                        <div class="stat-card warning">
-                            <div class="stat-value" id="total-inundables">0</div>
-                            <div class="stat-label">Inundables</div>
-                        </div>
+                        <div class="stat-card"><div class="stat-value" id="total-sectores">0</div><div class="stat-label">Total</div></div>
+                        <div class="stat-card danger"><div class="stat-value" id="total-accidentes">0</div><div class="stat-label">Accidentes</div></div>
+                        <div class="stat-card warning"><div class="stat-value" id="total-inundables">0</div><div class="stat-label">Inundables</div></div>
                     </div>
-                    <div class="filter-box">
-                        <input type="text" id="filter-valor" placeholder="Buscar por barrio...">
-                        <button id="apply-filter"><i class="fas fa-search"></i></button>
-                    </div>
+                    <div class="filter-box"><input type="text" id="filter-valor" placeholder="Buscar por barrio..."><button id="apply-filter"><i class="fas fa-search"></i></button></div>
                     <div class="list-container" id="sectores-list"></div>
                 </div>
-
                 <div class="panel hidden" id="panel-trafico">
-                    <div class="panel-header">
-                        <h2><i class="fas fa-traffic-light"></i> Tráfico RT</h2>
-                    </div>
+                    <div class="panel-header"><h2><i class="fas fa-traffic-light"></i> Tráfico RT</h2></div>
                     <div class="stats-cards">
-                        <div class="stat-card success">
-                            <div class="stat-value" id="trafico-fluido">0</div>
-                            <div class="stat-label">Fluido</div>
-                        </div>
-                        <div class="stat-card warning">
-                            <div class="stat-value" id="trafico-moderado">0</div>
-                            <div class="stat-label">Moderado</div>
-                        </div>
-                        <div class="stat-card danger">
-                            <div class="stat-value" id="trafico-critico">0</div>
-                            <div class="stat-label">Crítico</div>
-                        </div>
+                        <div class="stat-card success"><div class="stat-value" id="trafico-fluido">0</div><div class="stat-label">Fluido</div></div>
+                        <div class="stat-card warning"><div class="stat-value" id="trafico-moderado">0</div><div class="stat-label">Moderado</div></div>
+                        <div class="stat-card danger"><div class="stat-value" id="trafico-critico">0</div><div class="stat-label">Crítico</div></div>
                     </div>
-                    <p class="update-time"><i class="fas fa-clock"></i> Última actualización: <span id="traffic-update">5</span> min</p>
+                    <p class="update-time"><i class="fas fa-clock"></i> Actualizado: <span id="traffic-update">5</span> min</p>
                     <div class="list-container" id="flujo-list"></div>
                 </div>
-
                 <div class="panel hidden" id="panel-prediccion">
-                    <div class="panel-header">
-                        <h2><i class="fas fa-brain"></i> Predicción IA</h2>
-                    </div>
-                    <div class="prediction-banner">
-                        <i class="fas fa-robot"></i>
-                        <span>Riesgo 2-4 horas adelante</span>
-                    </div>
+                    <div class="panel-header"><h2><i class="fas fa-brain"></i> Predicción IA</h2></div>
+                    <div class="prediction-banner"><i class="fas fa-robot"></i><span>Riesgo 2-4 horas</span></div>
                     <div class="stats-cards">
-                        <div class="stat-card danger">
-                            <div class="stat-value" id="pred-alta">0</div>
-                            <div class="stat-label">Alto</div>
-                        </div>
-                        <div class="stat-card warning">
-                            <div class="stat-value" id="pred-media">0</div>
-                            <div class="stat-label">Medio</div>
-                        </div>
-                        <div class="stat-card success">
-                            <div class="stat-value" id="pred-baja">0</div>
-                            <div class="stat-label">Bajo</div>
-                        </div>
+                        <div class="stat-card danger"><div class="stat-value" id="pred-alta">0</div><div class="stat-label">Alto</div></div>
+                        <div class="stat-card warning"><div class="stat-value" id="pred-media">0</div><div class="stat-label">Medio</div></div>
+                        <div class="stat-card success"><div class="stat-value" id="pred-baja">0</div><div class="stat-label">Bajo</div></div>
                     </div>
                     <div class="list-container" id="prediccion-list"></div>
                 </div>
-
                 <div class="panel hidden" id="panel-lluvias">
-                    <div class="panel-header">
-                        <h2><i class="fas fa-cloud-rain"></i> Rutas Seguras Lluvia</h2>
-                    </div>
-                    <div class="weather-banner" id="weather-alert">
-                        <i class="fas fa-info-circle"></i>
-                        <span id="alert-count">0</span> zonas con alerta activa
-                    </div>
+                    <div class="panel-header"><h2><i class="fas fa-cloud-rain"></i> Rutas Seguras Lluvia</h2></div>
+                    <div class="weather-banner"><i class="fas fa-info-circle"></i><span id="alert-count">0</span> alertas activas</div>
                     <div class="list-container" id="rutas-seguras-list"></div>
                 </div>
             </aside>
         </div>
-
-        <footer class="bottom-footer">
-            <p><i class="fas fa-database"></i> Fuente: SIM - Medellín | Secretaría de Movilidad</p>
-            <p class="version">v1.0 - Dashboard en tiempo real</p>
-        </footer>
-
-        <div id="chatbot">
-            <div class="chatbot-header">
-                <h3><i class="fas fa-robot"></i> Asistente IA</h3>
-                <button class="chatbot-close" id="chatbot-close"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="chatbot-messages" id="chatbot-messages">
-                <div class="chatbot-message bot">¡Hola! Soy tu asistente de movilidad. Pregúntame sobre tráfico, zonas críticas o rutas seguras. 🚗</div>
-            </div>
-            <div class="chatbot-input">
-                <input type="text" id="chatbot-input" placeholder="¿Qué necesitas?...">
-                <button id="chatbot-send"><i class="fas fa-paper-plane"></i></button>
-            </div>
-        </div>
+        <footer class="bottom-footer"><p><i class="fas fa-database"></i> Fuente: SIM Medellín - Secretaría de Movilidad</p></footer>
     </div>
-
+    <div id="chatbot">
+        <div class="chatbot-header"><h3><i class="fas fa-robot"></i> Asistente IA</h3><button class="chatbot-close" id="chatbot-close"><i class="fas fa-times"></i></button></div>
+        <div class="chatbot-messages" id="chatbot-messages"><div class="chatbot-message bot">¡Hola! Pregúntame sobre tráfico, zonas críticas o rutas seguras.</div></div>
+        <div class="chatbot-input"><input type="text" id="chatbot-input" placeholder="Escribe..."><button id="chatbot-send"><i class="fas fa-paper-plane"></i></button></div>
+    </div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/static/js/app.js"></script>
 </body>

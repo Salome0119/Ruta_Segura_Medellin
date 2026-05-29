@@ -1,9 +1,12 @@
+from django.db import models
 from django.http import JsonResponse
 from django.shortcuts import render
 from .models import SectoresCriticos, ClimaActual, FlujoTiempoReal, HistoricoAccidentes, PrediccionesTrafico
 from django.utils import timezone
 from datetime import timedelta
-from django.db import models
+
+def indice(request):
+    return render(request, 'core_app/index.html')
 
 def lista_sectores_criticos(request):
     filtro = request.GET.get('filtro', None)
@@ -31,9 +34,9 @@ def lista_sectores_criticos(request):
     return JsonResponse({'status': 'success', 'total': len(data), 'sectores': data})
 
 def alertas_clima_comunas(request):
-    municipios_con_alerta = ClimaActual.objects.filter(municipio='Medellín', alerta_inundacion_activa=True)
+    alertas = ClimaActual.objects.filter(municipio='Medellín', alerta_inundacion_activa=True)
     data = []
-    for clima in municipios_con_alerta:
+    for clima in alertas:
         data.append({
             'departamento': clima.departamento,
             'municipio': clima.municipio,
@@ -42,9 +45,6 @@ def alertas_clima_comunas(request):
             'ultima_actualizacion': clima.ultima_actualizacion.strftime('%Y-%m-%d %H:%M:%S')
         })
     return JsonResponse({'status': 'success', 'alertas_activas': len(data), 'municipios': data})
-
-def indice(request):
-    return render(request, 'core_app/index.html')
 
 def api_flujo_tiempo_real(request):
     filtro = request.GET.get('filtro', None)
@@ -169,7 +169,7 @@ def api_rutas_seguras(request):
     
     municipios_con_alerta = clima_data.values_list('municipio', flat=True)
     sector_ids = SectoresCriticos.objects.filter(
-        municipio__in=municipios_con_alerta,
+        municipio__in=['Medellín'],
         municipio='Medellín'
     ).values_list('id', flat=True)
     
@@ -217,81 +217,37 @@ def api_chatbot(request):
             respuesta += "**Principales zonas inundables:**\n"
             for s in top_sectores:
                 respuesta += f"  • {s['nombre_sector']} ({s['barrio']})\n"
-        respuesta += "\n⚠️ Las zonas inundables tienen alto riesgo de accidentes por condiciones climáticas adversas. Evítalas en temporada lluvia."
+        respuesta += "\n⚠️ Las zonas inundables tienen alto riesgo de accidentes por condiciones climáticas. Evítalas en temporada lluvia."
     elif any(x in pregunta for x in ['tráfico', 'trafico', 'tiempo real', 'flujo', 'vehicular', 'vehículos', 'velocidad', 'congestión', 'congestion']):
-        flujos = FlujoTiempoReal.objects.filter(
-            fecha_hora_registro__gte=timezone.now() - timedelta(hours=1),
-            sector__municipio='Medellín'
-        )
+        flujos = FlujoTiempoReal.objects.filter(sector__municipio='Medellín')
         fluido = flujos.filter(nivel_congestion='Fluido').count()
         moderado = flujos.filter(nivel_congestion='Moderado').count()
         critico = flujos.filter(nivel_congestion='Crítico').count()
-        total_flujo = flujos.count()
-        
-        critico_sectores = list(flujos.filter(nivel_congestion='Crítico').select_related('sector').values('sector__nombre_sector', 'sector__municipio', 'velocidad_promedio')[:5])
-        
-        velocidad_prom = flujos.aggregate(models.Avg('velocidad_promedio'))['velocidad_promedio__avg'] or 0
         
         respuesta = f"🟢 **Monitoreo de Tráfico en Tiempo Real - Medellín**\n\n"
         respuesta += f"• Tráfico fluido: {fluido} sectores\n"
         respuesta += f"• Tráfico moderado: {moderado} sectores\n"
         respuesta += f"• Tráfico crítico: {critico} sectores\n"
-        respuesta += f"• Velocidad promedio: {float(velocidad_prom):.1f} km/h\n\n"
-        if critico_sectores:
-            respuesta += "**Zonas con tráfico crítico AHORA:**\n"
-            for s in critico_sectores:
-                respuesta += f"  • {s['sector__nombre_sector']} - {s['velocidad_promedio']} km/h\n"
-        residuos = flujos.values('sector__nombre_sector').annotate(models.Avg('volumen_vehicular'))[:3]
         respuesta += "\n🔄 Los datos se actualizan cada 5 minutos desde el Sistema Inteligente de Movilidad (SIM)."
     elif any(x in pregunta for x in ['predicción', 'prediccion', 'congestion', 'congestión', 'ia', 'modelo', 'riesgo futuro', 'futuro', 'mañana', 'hoy']):
-        predicciones = PrediccionesTrafico.objects.filter(
-            fecha_hora_predicha__gte=timezone.now(),
-            sector__municipio='Medellín'
-        ).select_related('sector')
+        predicciones = PrediccionesTrafico.objects.filter(sector__municipio='Medellín', fecha_hora_predicha__gte=timezone.now()).select_related('sector')
         alta = predicciones.filter(probabilidad_congestion__gte=0.7).count()
         media = predicciones.filter(probabilidad_congestion__gte=0.4, probabilidad_congestion__lt=0.7).count()
         baja = predicciones.filter(probabilidad_congestion__lt=0.4).count()
-        total_pred = predicciones.count()
-        
-        alta_sectores = list(predicciones.filter(probabilidad_congestion__gte=0.7).values('sector__nombre_sector', 'probabilidad_congestion', 'fecha_hora_predicha', 'sector__barrio')[:5])
         
         respuesta = f"🔮 **Predicción de Congestión - Medellín**\n\n"
         respuesta += f"• Alto riesgo (≥70%): {alta} sectores\n"
         respuesta += f"• Riesgo medio (40-69%): {media} sectores\n"
-        respuesta += f"• Bajo riesgo (<40%): {baja} sectores\n\n"
-        if alta_sectores:
-            respuesta += "**Sectores con alto riesgo de congestión:**\n"
-            for s in alta_sectores:
-                hora = s['fecha_hora_predicha'].strftime('%H:%M') if hasattr(s['fecha_hora_predicha'], 'strftime') else str(s['fecha_hora_predicha'])
-                respuesta += f"  • {s['sector__nombre_sector']} ({s['sector__barrio']}) - {float(s['probabilidad_congestion'])*100:.0f}% a las {hora}\n"
-        respuesta += "\n📊 Predicciones basadas en modelos de IA usando datos históricos y condiciones actuales del SIM."
-    elif any(x in pregunta for x in ['rutas seguras', 'ruta segura', 'lluvia', 'inundación', 'inundaciones', 'segura', 'alternativa', 'evitar', 'seguro', 'seguro', 'temporada lluvia']):
-        clima_alertas = ClimaActual.objects.filter(municipio='Medellín', alerta_inundacion_activa=True)
-        alertas_count = clima_alertas.count()
-        
-        sectores_inundables = SectoresCriticos.objects.filter(municipio='Medellín', es_inundable=True)
-        
-        rutas_segreguras = PrediccionesTrafico.objects.filter(
-            sector__municipio='Medellín',
-            fecha_hora_predicha__gte=timezone.now(),
-            probabilidad_congestion__lt=0.3
-        ).select_related('sector').values('sector__nombre_sector', 'sector__municipio', 'probabilidad_congestion', 'sector__barrio')[:5]
-        
+        respuesta += f"• Bajo riesgo (<40%): {baja} sectores\n"
+        respuesta += "\n📊 Predicciones basadas en modelos de IA usando datos históricos."
+    elif any(x in pregunta for x in ['rutas seguras', 'ruta segura', 'lluvia', 'inundación', 'inundaciones', 'segura', 'alternativa', 'evitar', 'seguro']):
+        clima_alertas = ClimaActual.objects.filter(municipio='Medellín', alerta_inundacion_activa=True).count()
         respuesta = f"🌊 **Rutas Seguras - Medellín (Temporada Lluvia)**\n\n"
-        respuesta += f"• Alertas activas: {alertas_count} zonas\n"
-        respuesta += f"• Zonas inundables: {sectores_inundables.count()}\n\n"
-        if rutas_segreguras:
-            respuesta += "**Rutas recomendadas (bajo riesgo hoy):**\n"
-            for r in rutas_segreguras:
-                respuesta += f"  • {r['sector__nombre_sector']} ({r['sector__barrio']})\n"
-        respuesta += "\n✅ Verifica siempre el estado del clima antes de viajar. Puedes filtrar por barrio en la pestaña."
+        respuesta += f"• Alertas activas: {clima_alertas} zonas\n"
+        respuesta += "\n✅ Verifica siempre el estado del clima antes de viajar."
     elif any(x in pregunta for x in ['hola', 'hello', 'buenas', 'hi', 'hey', 'saludos']):
-        respuesta = "🤖 ¡Hola! Soy tu asistente de **Ruta Segura Medellín**.\n\nPregúntame sobre:\n• Zonas críticas e inundables\n• Tráfico en tiempo real\n• Predicciones de congestión\n• Rutas seguras en lluvia\n\n💡 Tip: Usa los filtros para buscar por barrio o área específica."
-    elif any(x in pregunta for x in ['gracias', 'gracias', 'thank', 'ok', 'vale', 'genial']):
-        respuesta = "¡Con gusto! Si necesitas más información sobre movilidad en Medellín, aquí estoy. 🚗💨"
-    elif any(x in pregunta for x in ['dónde', 'donde', 'ubicación', 'ubicacion', 'direccion', 'dirección', 'cómo llegar', 'como llegar']):
-        respuesta = "🗺️ **Navegación en Medellín**\n\nEl mapa muestra en tiempo real las zonas con mayor riesgo. Haz clic en los marcadores para ver detalles.\n\nPara rutas específicas, usa Google Maps integrado con traffic layer activado."
+        respuesta = "🤖 ¡Hola! Soy tu asistente de movilidad en Medellín.\n\nPregúntame sobre:\n• Zonas críticas e inundables\n• Tráfico en tiempo real\n• Predicciones de congestión\n• Rutas seguras en lluvia"
     else:
-        respuesta = "❓ No entiendo tu pregunta. Intenta con:\n• '¿Qué zonas críticas hay en Medellín?'\n• '¿Cómo está el tráfico ahora?'\n• '¿Qué predicciones hay para hoy?'\n• '¿Qué rutas son seguras en lluvia?'\n• '¿Dónde están las zonas inundables?'"
+        respuesta = "❓ No entiendo tu pregunta. Intenta con:\n• '¿Zonas críticas Medellín?'\n• '¿Tráfico ahora?'\n• '¿Predicciones hoy?'\n• '¿Rutas seguras lluvia?'"
 
     return JsonResponse({'status': 'success', 'respuesta': respuesta})
